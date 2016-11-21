@@ -1,5 +1,5 @@
 %% load image
-orig = imread('TestBoard3.jpg');
+orig = imread('TestBoard1.jpg');
 
 %orig = imgaussfilt(orig, 5);
 
@@ -35,7 +35,7 @@ line_img = im2bw(line_img, 0.4);
 
 % find angle of board
 % the resolution of the angle bins
-angle_accuracy = 10;
+angle_accuracy = 3;
 num_peaks = 20;
 % bins to store the number of peaks found at each possible board rotation
 % index 1 stores peaks found from 0 deg to angle_accuracy and 90 degrees to
@@ -48,13 +48,13 @@ for i = 1:length(peaks)
     % modulus 90 because we know the board is at a 90 degree angle, so we
     % combine count of peaks found at 0-90 and 90-180. (for instance a peak
     % found at 20 deg and 110 deg would go in the same peak_counts bin
-    bin = floor(mod(peaks(i,2),90)/3) + 1;
+    bin = floor(mod(peaks(i,2),90)/angle_accuracy) + 1;
     peak_counts(bin) = peak_counts(bin) + 1;
 end
 % get the most common angle (presumably the board)
 [unused,board_angle] = max(peak_counts);
 % assume the angle is in the middle of the angle_accuracy range
-board_angle = (board_angle*angle_accuracy)-(angle_accuracy/2);
+board_angle = floor((board_angle*angle_accuracy)-(angle_accuracy/2));
 
 % find size of board
 if board_angle-2*angle_accuracy < 0
@@ -63,16 +63,16 @@ else
     H1 = H(:,board_angle-2*angle_accuracy:board_angle+2*angle_accuracy);
 end
 if board_angle+90+2*angle_accuracy > 180
-    H2 = H2(:,(board_angle+90)-2*angle_accuracy:180);
+    H2 = H(:,(board_angle+90)-2*angle_accuracy:180);
 else
     H2 = H(:,(board_angle+90)-2*angle_accuracy:(board_angle+90)+2*angle_accuracy);
 end
-H1 = sum(H1, 2);
-H2 = sum(H2, 2);
-peaks1 = houghpeaks(H1, 19, 'Threshold', 0.5*max(H(:)));
+%H1 = sum(H1, 2);
+%H2 = sum(H2, 2);
+peaks1 = houghpeaks(H1, 19, 'Threshold', 0.3*max(H(:)));
 max_peak1 = max(peaks1(:,1));
 min_peak1 = min(peaks1(:,1));
-peaks2 = houghpeaks(H2, 19, 'Threshold', 0.5*max(H(:)));
+peaks2 = houghpeaks(H2, 19, 'Threshold', 0.3*max(H(:)));
 max_peak2 = max(peaks2(:,1));
 min_peak2 = min(peaks2(:,1));
 
@@ -84,44 +84,72 @@ axis on, axis normal, hold on;
 plot([board_angle-90, board_angle-90,board_angle,board_angle],[R(max_peak1),R(min_peak1),R(max_peak2),R(min_peak2)],'s','color','white');
 hold off
 
-max_line1 = houghlines(line_img,T,R,[max_peak1,board_angle], 'FillGap', 1000, 'MinLength', 1);
-min_line1 = houghlines(line_img,T,R,[min_peak1,board_angle], 'FillGap', 1000, 'MinLength', 1);
-max_line2 = houghlines(line_img,T,R,[max_peak2,board_angle+90], 'FillGap', 1000, 'MinLength', 1);
-min_line2 = houghlines(line_img,T,R,[min_peak2,board_angle+90], 'FillGap', 1000, 'MinLength', 1);
+if R(max_peak1) > 0
+    max_line1_intercept = [sind(board_angle-90)*R(max_peak1) cosd(board_angle-90)*R(max_peak1)];
+else
+    max_line1_intercept = [cosd(board_angle)*abs(R(max_peak1)) sind(board_angle)*R(max_peak1)];
+end
+max_line1_slope = -1/(max_line1_intercept(1)/max_line1_intercept(2));
 
-max_line1_slope = (max_line1(end).point2(2) - max_line1(1).point1(2))/(max_line1(end).point2(1) - max_line1(1).point1(1));
-min_line1_slope = (min_line1(end).point2(2) - min_line1(1).point1(2))/(min_line1(end).point2(1) - min_line1(1).point1(1));
-max_line2_slope = (max_line2(end).point2(2) - max_line2(1).point1(2))/(max_line2(end).point2(1) - max_line2(1).point1(1));
-min_line2_slope = (min_line2(end).point2(2) - min_line2(1).point1(2))/(min_line2(end).point2(1) - min_line2(1).point1(1));
+if R(min_peak1) > 0
+    min_line1_intercept = [sind(board_angle-90)*R(min_peak1) cosd(board_angle-90)*R(min_peak1)];
+else
+    min_line1_intercept = [cosd(board_angle)*abs(R(min_peak1)) sind(board_angle)*R(min_peak1)];
+end
+min_line1_slope = -1/(min_line1_intercept(1)/min_line1_intercept(2));
+
+if R(max_peak2) > 0
+    max_line2_intercept = [sind(board_angle)*R(max_peak2) cosd(board_angle)*R(max_peak2)];
+else
+    max_line2_intercept = [cosd(board_angle+90)*abs(R(max_peak2)) sind(board_angle+90)*R(max_peak2)];
+end
+max_line2_slope = -1/(max_line2_intercept(1)/max_line2_intercept(2));
+
+if R(min_peak2) > 0
+    min_line2_intercept = [sind(board_angle)*R(min_peak2) cosd(board_angle)*R(min_peak2)];
+else
+    min_line2_intercept = [cosd(board_angle+90)*abs(R(min_peak2)) sind(board_angle+90)*R(min_peak2)];
+end
+min_line2_slope = -1/(min_line2_intercept(1)/min_line2_intercept(2));
 
 %average_slope = (min_line1_slope + max_line1_slope + 1/max_line2_slope + 1/min_line2_slope) / 4;
 
 % this is a safety buffer put around the board to make sure nothing is cut
 % off. It is a percentage of the height and width of the image
-safety_buffer = .025;
-max_line1_intersect = max_line1(1).point1(2)-max_line1_slope*max_line1(1).point1(1) - safety_buffer*height;
-min_line1_intersect = min_line1(1).point1(2)-min_line1_slope*min_line1(1).point1(1) + safety_buffer*height;
-max_line2_intersect = max_line2(1).point1(2)-max_line2_slope*max_line1(1).point1(1) - safety_buffer*width;
-min_line2_intersect = min_line2(1).point1(2)-min_line2_slope*min_line2(1).point1(1) + safety_buffer*width;
+safety_buffer = .05;
+%max_line1_intersect = max_line1(1).point1(2)-max_line1_slope*max_line1(1).point1(1) - safety_buffer*height;
+max_line1_intersect = max_line1_intercept(1)-max_line1_slope*max_line1_intercept(2);
+max_line1_intersect = max_line1_intersect - safety_buffer*height;
+%min_line1_intersect = min_line1(1).point1(2)-min_line1_slope*min_line1(1).point1(1) + safety_buffer*height;
+min_line1_intersect = min_line1_intercept(1)-min_line1_slope*min_line1_intercept(2);
+min_line1_intersect = min_line1_intersect + safety_buffer*height;
+%max_line2_intersect = max_line2(1).point1(2)-max_line2_slope*max_line1(1).point1(1) - safety_buffer*width;
+max_line2_intersect = max_line2_intercept(1)-max_line2_slope*max_line2_intercept(2);
+max_line2_intersect = max_line2_intersect + safety_buffer*width;
+%min_line2_intersect = min_line2(1).point1(2)-min_line2_slope*min_line2(1).point1(1) + safety_buffer*width;
+min_line2_intersect = min_line2_intercept(1)-min_line2_slope*min_line2_intercept(2);
+min_line2_intersect = min_line2_intersect - safety_buffer*width;
 
-figure(2);
+figure(3);
 imshow(img);
 % horizontal
-line([1,width],[max_line1_slope+max_line1_intersect, max_line1_slope*width+max_line1_intersect], 'Color', 'r');
-line([1,width],[min_line1_slope+min_line1_intersect, min_line1_slope*width+min_line1_intersect], 'Color', 'r');
+line([1,width],[max_line1_slope+max_line1_intersect, max_line1_slope*width+max_line1_intersect], 'Color', 'b');
+line([1,width],[min_line1_slope+min_line1_intersect, min_line1_slope*width+min_line1_intersect], 'Color', 'b');
 % vertical
 if max_line2_slope == Inf
-    x = [max_line2(1).point1(1)+safety_buffer*width, max_line2(1).point1(1)+safety_buffer*width];
+    %x = [max_line2(1).point1(1)+safety_buffer*width, max_line2(1).point1(1)+safety_buffer*width];
+    x = [max_r2(1)+safety_buffer*width, max_r2(1)+safety_buffer*width];
     line([x(1), x(1)],[1,height],'Color','r');
 else
-    x = [(min_line1_intercept-max_line2_intercept)/(max_line2_slope-min_line1_slope),(max_line1_intercept-max_line2_intercept)/(max_line2_slope-max_line1_slope)];
+    x = [(min_line1_intersect-max_line2_intersect)/(max_line2_slope-min_line1_slope),(max_line1_intersect-max_line2_intersect)/(max_line2_slope-max_line1_slope)];
     line([(1-max_line2_intersect)/max_line2_slope, (height-max_line2_intersect)/max_line2_slope],[1,height], 'Color', 'r');
 end
 if min_line2_slope == Inf
-    x = [[min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width] x];
+    %x = [[min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width] x];
+    x = [[min_r2(1)-safety_buffer*width, min_r2(1)-safety_buffer*width] x];
     line([min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width],[1,height],'Color','r');
 else
-    x = [[(max_line1_intercept-min_line2_intercept)/(min_line2_slopt-max_line1_slopt),(min_line1_intercept-min_line2_intercept)/(min_line2_slope-min_line1_slope)] x];
+    x = [[(max_line1_intersect-min_line2_intersect)/(min_line2_slope-max_line1_slope),(min_line1_intersect-min_line2_intersect)/(min_line2_slope-min_line1_slope)] x];
     line([(1-min_line2_intersect)/min_line2_slope, (height-min_line2_intersect)/min_line2_slope],[1,height], 'Color', 'r');
 end
 
@@ -131,12 +159,14 @@ y = [max_line1_slope*x(1)+max_line1_intersect,min_line1_slope*x(2)+min_line1_int
 board_height = ((y(2)-y(1))+(y(3)-y(4)))/2;
 board_width = ((x(4)-x(1))+(x(3)-x(2)))/2;
 mask = poly2mask([x x(1)],[y y(1)],height,width);
+mask = imrotate(mask, board_angle);
 
 %% convert image to grayscale
 %  increase the importance of blue so that elements with more blue appear
 %  lighter
 %img = 0.2989 * img(:,:,1) + 0.5870 * img(:,:,2) + 0.1140 * img(:,:,3);
 img = 0.0000 * img(:,:,1) + 0.0000 * img(:,:,2) + 0.9999 * img(:,:,3);
+img = imrotate(img, board_angle);
 img = uint8(img);
 img_comp = imcomplement(img);
 
@@ -147,14 +177,15 @@ subplot(1,2,2);
 imshow(img_comp), gray(256);
 
 %% correct for lighting before thresholding
-light_corrected_img = imtophat(img, strel('disk', 80));
+light_corrected_img = imtophat(img, strel('disk', 120));
+%light_corrected_img = imadjust(light_corrected_img,[0.3 0.7],[]);
 
 figure(5);
 imshow(light_corrected_img);
 
 %% convert to gray level
-img_black = im2bw(img, graythresh(img));
-img_white = im2bw(img, 0.62);
+img_black = im2bw(light_corrected_img, graythresh(img));
+img_white = im2bw(light_corrected_img, 0.64);
 img_black(mask==0) = 255;
 img_white(mask==0) = 0;
 
@@ -185,7 +216,7 @@ black_opening = imopen(img_black, struct_element);
 %%  erode to make sure pieces are sperated
 struct_element = strel('disk', 10);
 
-white_opening = imerode(white_opening, struct_element);
+%white_opening = imerode(white_opening, struct_element);
 black_opening = imerode(black_opening, struct_element);
 
 figure(7);
