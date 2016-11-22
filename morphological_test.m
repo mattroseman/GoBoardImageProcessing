@@ -1,5 +1,5 @@
 %% load image
-orig = imread('TestBoard1.jpg');
+orig = imread('TestBoard5.jpg');
 
 %orig = imgaussfilt(orig, 5);
 
@@ -116,41 +116,42 @@ min_line2_slope = -1/(min_line2_intercept(1)/min_line2_intercept(2));
 
 % this is a safety buffer put around the board to make sure nothing is cut
 % off. It is a percentage of the height and width of the image
-safety_buffer = .05;
+horz_safety_buffer = 200;
+vert_safety_buffer = 200;
 %max_line1_intersect = max_line1(1).point1(2)-max_line1_slope*max_line1(1).point1(1) - safety_buffer*height;
 max_line1_intersect = max_line1_intercept(1)-max_line1_slope*max_line1_intercept(2);
-max_line1_intersect = max_line1_intersect - safety_buffer*height;
+max_line1_intersect = max_line1_intersect - horz_safety_buffer;
 %min_line1_intersect = min_line1(1).point1(2)-min_line1_slope*min_line1(1).point1(1) + safety_buffer*height;
 min_line1_intersect = min_line1_intercept(1)-min_line1_slope*min_line1_intercept(2);
-min_line1_intersect = min_line1_intersect + safety_buffer*height;
+min_line1_intersect = min_line1_intersect + horz_safety_buffer;
 %max_line2_intersect = max_line2(1).point1(2)-max_line2_slope*max_line1(1).point1(1) - safety_buffer*width;
 max_line2_intersect = max_line2_intercept(1)-max_line2_slope*max_line2_intercept(2);
-max_line2_intersect = max_line2_intersect + safety_buffer*width;
+max_line2_intersect = max_line2_intersect + vert_safety_buffer;
 %min_line2_intersect = min_line2(1).point1(2)-min_line2_slope*min_line2(1).point1(1) + safety_buffer*width;
 min_line2_intersect = min_line2_intercept(1)-min_line2_slope*min_line2_intercept(2);
-min_line2_intersect = min_line2_intersect - safety_buffer*width;
+min_line2_intersect = min_line2_intersect - vert_safety_buffer;
 
 figure(3);
 imshow(img);
 % horizontal
 line([1,width],[max_line1_slope+max_line1_intersect, max_line1_slope*width+max_line1_intersect], 'Color', 'b');
-line([1,width],[min_line1_slope+min_line1_intersect, min_line1_slope*width+min_line1_intersect], 'Color', 'b');
+line([1,width],[min_line1_slope+min_line1_intersect, min_line1_slope*width+min_line1_intersect], 'Color', 'r');
 % vertical
 if max_line2_slope == Inf
     %x = [max_line2(1).point1(1)+safety_buffer*width, max_line2(1).point1(1)+safety_buffer*width];
-    x = [max_r2(1)+safety_buffer*width, max_r2(1)+safety_buffer*width];
-    line([x(1), x(1)],[1,height],'Color','r');
+    x = [max_r2(1)+vert_safety_buffer, max_r2(1)+vert_safety_buffer];
+    line([x(1), x(1)],[1,height],'Color','g');
 else
     x = [(min_line1_intersect-max_line2_intersect)/(max_line2_slope-min_line1_slope),(max_line1_intersect-max_line2_intersect)/(max_line2_slope-max_line1_slope)];
-    line([(1-max_line2_intersect)/max_line2_slope, (height-max_line2_intersect)/max_line2_slope],[1,height], 'Color', 'r');
+    line([(1-max_line2_intersect)/max_line2_slope, (height-max_line2_intersect)/max_line2_slope],[1,height], 'Color', 'g');
 end
 if min_line2_slope == Inf
     %x = [[min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width] x];
-    x = [[min_r2(1)-safety_buffer*width, min_r2(1)-safety_buffer*width] x];
-    line([min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width],[1,height],'Color','r');
+    x = [[min_r2(1)-vert_safety_buffer, min_r2(1)-vert_safety_buffer] x];
+    line([min_line2(1).point1(1)-safety_buffer*width, min_line2(1).point1(1)-safety_buffer*width],[1,height],'Color','y');
 else
     x = [[(max_line1_intersect-min_line2_intersect)/(min_line2_slope-max_line1_slope),(min_line1_intersect-min_line2_intersect)/(min_line2_slope-min_line1_slope)] x];
-    line([(1-min_line2_intersect)/min_line2_slope, (height-min_line2_intersect)/min_line2_slope],[1,height], 'Color', 'r');
+    line([(1-min_line2_intersect)/min_line2_slope, (height-min_line2_intersect)/min_line2_slope],[1,height], 'Color', 'y');
 end
 
 % crop the image
@@ -167,6 +168,7 @@ mask = imrotate(mask, board_angle);
 %img = 0.2989 * img(:,:,1) + 0.5870 * img(:,:,2) + 0.1140 * img(:,:,3);
 img = 0.0000 * img(:,:,1) + 0.0000 * img(:,:,2) + 0.9999 * img(:,:,3);
 img = imrotate(img, board_angle);
+[height,width] = size(img);
 img = uint8(img);
 img_comp = imcomplement(img);
 
@@ -177,15 +179,15 @@ subplot(1,2,2);
 imshow(img_comp), gray(256);
 
 %% correct for lighting before thresholding
-light_corrected_img = imtophat(img, strel('disk', 120));
+light_corrected_img = imtophat(img, strel('disk', 75));
 %light_corrected_img = imadjust(light_corrected_img,[0.3 0.7],[]);
 
 figure(5);
 imshow(light_corrected_img);
 
 %% convert to gray level
-img_black = im2bw(light_corrected_img, graythresh(img));
-img_white = im2bw(light_corrected_img, 0.64);
+img_black = im2bw(img, 0.30);
+img_white = im2bw(img, 0.70);
 img_black(mask==0) = 255;
 img_white(mask==0) = 0;
 
@@ -199,37 +201,38 @@ imshow(img_white);
 img_black = imcomplement(img_black);
 
 %% remove noise
-% first try and remove any noise around the border from an inaccurate mask
-% crop
-struct_element = strel('rectangle', [100,20]);
-img_black=img_black-imopen(img_black, struct_element);
-img_white=img_white-imopen(img_white, struct_element);
-struct_element = strel('rectangle', [20,100]);
-img_black=img_black-imopen(img_black, struct_element);
-img_white=img_white-imopen(img_white, struct_element);
+struct_element = strel('disk', 16);
+img_black = imopen(img_black, struct_element);
 
-struct_element = strel('disk', 20);
-
-white_opening = imopen(img_white, struct_element);
-black_opening = imopen(img_black, struct_element);
+struct_element = strel('disk', 16);
+img_white = imopen(img_white, struct_element);
 
 %%  erode to make sure pieces are sperated
-struct_element = strel('disk', 10);
+struct_element = strel('disk', 25);
 
-%white_opening = imerode(white_opening, struct_element);
-black_opening = imerode(black_opening, struct_element);
+white_opening = imerode(white_opening, struct_element);
+img_black = imerode(img_black, struct_element);
+
+% try and remove any noise around the border from an inaccurate mask
+% crop
+%struct_element = strel('rectangle', [100,1]);
+%img_black=img_black-imopen(img_black, struct_element);
+%img_white=img_white-imopen(img_white, struct_element);
+%struct_element = strel('rectangle', [1,100]);
+%img_black=img_black-imopen(img_black, struct_element);
+%img_white=img_white-imopen(img_white, struct_element);
 
 figure(7);
 subplot(1,2,1);
-imshow(black_opening);
+imshow(img_black);
 subplot(1,2,2);
-imshow(white_opening);
+imshow(img_white);
 
 %%  calculate the center of the pieces
-black_opening = logical(black_opening);
-white_opening = logical(white_opening);
-regions_black = regionprops('table',black_opening,'Centroid','MajorAxisLength','MinorAxisLength');
-regions_white = regionprops('table',white_opening,'Centroid','MajorAxisLength','MinorAxisLength');
+img_black = logical(img_black);
+img_white = logical(img_white);
+regions_black = regionprops('table',img_black,'Centroid','MajorAxisLength','MinorAxisLength');
+regions_white = regionprops('table',img_white,'Centroid','MajorAxisLength','MinorAxisLength');
 centers_black = regions_black.Centroid;
 centers_white = regions_white.Centroid;
 diameters_black = mean([regions_black.MajorAxisLength regions_black.MinorAxisLength], 2);
@@ -237,16 +240,11 @@ radii_black = diameters_black / 2;
 diameters_white = mean([regions_white.MajorAxisLength regions_white.MinorAxisLength], 2);
 radii_white = diameters_white / 2;
 
-figure(8);
-imshow(img);
-viscircles(centers_black, radii_black, 'Color', 'r');
-viscircles(centers_white, radii_white, 'Color', 'b');
-
 %  put the radiuses in bins and find the most common range
 % combine black and white radii
 radii = vertcat(radii_black, radii_white);
 % the bin size in pixels
-radius_accuracy = 20;
+radius_accuracy = 75;
 % each index of radii counts is a bin. index 1 is a bin for
 % 1 to radius_accuracy, and the last index is a bin for
 % max(radii)-radius_accuracy+1 to max(radii) or whatever is left after the
@@ -259,13 +257,125 @@ end
 [unused, avg_stone_radii] = max(radii_counts);
 avg_stone_radii = avg_stone_radii*radius_accuracy;
 centers_black = centers_black(radii_black <= avg_stone_radii+radius_accuracy & radii_black > avg_stone_radii-radius_accuracy, :);
+radii_black = radii_black(radii_black <= avg_stone_radii+radius_accuracy & radii_black > avg_stone_radii-radius_accuracy);
 centers_white = centers_white(radii_white <= avg_stone_radii+radius_accuracy & radii_white > avg_stone_radii-radius_accuracy, :);
+radii_white = radii_white(radii_white <= avg_stone_radii+radius_accuracy & radii_white > avg_stone_radii-radius_accuracy);
+
+figure(8);
+imshow(img);
+hold on
+viscircles(centers_black, radii_black, 'Color', 'r');
+viscircles(centers_white, radii_white, 'Color', 'b');
+hold off
+
+centers = [centers_black; centers_white];
+
+topmost_piece = min(centers(:,2));
+botmost_piece = max(centers(:,2));
+leftmost_piece = min(centers(:,1));
+rightmost_piece = max(centers(:,1));
+center = [(botmost_piece-topmost_piece)/2 (rightmost_piece-leftmost_piece)/2];
+
+x_values = linspace(leftmost_piece,rightmost_piece,19);
+y_values = linspace(topmost_piece,botmost_piece,19);
+
+figure(9);
+imshow(imrotate(orig,board_angle));
+hold on
+for i=1:19
+    line([1,width],[y_values(i),y_values(i)],'Color','g');
+    line([x_values(i),x_values(i)],[1,height],'Color','g');
+end
+plot(centers_black(:,1),centers_black(:,2),'ro');
+plot(centers_white(:,1),centers_white(:,2),'bo');
+hold off
+%{
+% find minimum distance
+min_dist = pdist([centers(1,:);centers(2,:)],'euclidean');
+for i=1:length(centers)
+    for j=1:length(centers)
+        dist = pdist([centers(j,:);centers(i,:)], 'euclidean');
+        if 0 < dist & dist < min_dist
+            min_dist=dist;
+        end
+    end
+end
+% if two points are [min_dist,min_dist+dist_accuracy] away they are
+% considered adjacent
+dist_accuracy = 20;
+total = 0;
+count = 0;
+for i=1:length(centers)
+    for j=1:length(centers)
+        dist = pdist([centers(j,:);centers(i,:)], 'euclidean');
+        if 0 < dist & dist < min_dist+40;
+            total = total + dist;
+            count = count + 1;
+        end
+    end
+end
+avg_dist = total/count;
+grid_width = avg_dist*18;
+%%  overlay the grid
+
+% the test grid will be fitted board_angle+-angle_offset
+top_right_corner = [max_line1_slope*(max_line2_intersect-max_line1_intersect)/(max_line1_slope-max_line2_slope)+max_line1_intersect
+    (max_line2_intersect-max_line1_intersect)/(max_line1_slope-max_line2_slope)];
+top_right_corner = floor(top_right_corner');
+%top_right_corner(1) = top_right_corner(1) + horz_safety_buffer;
+%top_right_corner(2) = top_right_corner(2) - vert_safety_buffer;
+
+top_left_corner = [max_line1_slope*(min_line2_intersect-max_line1_intersect)/(max_line1_slope-min_line2_slope)+max_line1_intersect
+    (min_line2_intersect-max_line1_intersect)/(max_line1_slope-min_line2_slope)];
+top_left_corner = floor(top_left_corner');
+%top_left_corner(1) = top_left_corner(1) + horz_safety_buffer;
+%top_left_corner(2) = top_left_corner(2) + vert_safety_buffer;
+
+bot_right_corner = [min_line1_slope*(max_line2_intersect-min_line1_intersect)/(min_line1_slope-max_line2_slope)+min_line1_intersect
+    (max_line2_intersect-min_line1_intersect)/(min_line1_slope-max_line2_slope)];
+bot_right_corner = floor(bot_right_corner');
+%bot_right_corner(1) = bot_right_corner(1) - horz_safety_buffer;
+%bot_right_corner(2) = bot_right_corner(2) - vert_safety_buffer;
+
+bot_left_corner = [min_line1_slope*(min_line2_intersect-min_line1_intersect)/(min_line1_slope-min_line2_slope)+min_line1_intersect
+    (min_line2_intersect-min_line1_intersect)/(min_line1_slope-min_line2_slope)];
+bot_left_corner = floor(bot_left_corner');
+%bot_left_corner(1) = bot_left_corner(1) - horz_safety_buffer;
+%bot_left_corner(2) = bot_left_corner(2) - vert_safety_buffer;
+
+top_width = top_right_corner(2)-top_left_corner(2);
+left_width = bot_right_corner(1)-top_right_corner(1);
+right_width = bot_left_corner(1)-top_left_corner(1);
+bot_width = bot_right_corner(2)-bot_left_corner(2);
+
+%top_right_corner(2) = top_right_corner(2)-((top_width)-grid_width)/2;
+%top_right_corner(1) = top_right_corner(1)+((right_width)-grid_width)/2;
+%bot_right_corner(2) = bot_right_corner(2)-((bot_width)-grid_width)/2;
+%bot_right_corner(1) = bot_right_corner(1)-((right_width)-grid_width)/2;
+%bot_left_corner(2) = bot_left_corner(2)+((bot_width)-grid_width)/2;
+%bot_left_corner(1) = bot_left_corner(1)-((left_width)-grid_width)/2;
+%top_left_corner(2) = top_left_corner(2)+((top_width)-grid_width)/2;
+%top_left_corner(1) = top_left_corner(1)+((left_width)-grid_width)/2;
+
+vert_linesx = [linspace(top_left_corner(2),top_right_corner(2),19);linspace(bot_left_corner(2),bot_right_corner(2),19)];
+vert_linesx = round(vert_linesx);
+vert_linesy = [linspace(top_left_corner(1),top_right_corner(1),19);linspace(bot_left_corner(1),bot_right_corner(1),19)];
+vert_linesy = round(vert_linesy);
+
+horz_linesx = [linspace(top_left_corner(2),bot_left_corner(2),19);linspace(top_right_corner(2),bot_right_corner(2),19)];
+horz_linesx = round(horz_linesx);
+horz_linesy = [linspace(top_left_corner(1),bot_left_corner(1),19);linspace(top_right_corner(1),bot_right_corner(1),19)];
+horz_linesx = round(horz_linesy);
+
+% find the nearest intersect in grid for every piece
 
 figure(9);
 imshow(img);
-viscircles(centers_black, radii_black, 'Color', 'r');
-viscircles(centers_white, radii_white, 'Color', 'b');
-
-%%  overlay the grid
-% the test grid will be fitted board_angle+-angle_offset
-angle_offset = 5
+hold on
+for i=1:19
+    line([vert_linesx(1,i),vert_linesx(2,i)],[vert_linesy(1,i),vert_linesy(2,i)], 'Color', 'r');
+    line([horz_linesx(1,i),horz_linesx(2,i)],[horz_linesy(1,i),horz_linesy(2,i)], 'Color', 'b');
+end
+%plot(bot_right_corner(2),bot_right_corner(1),'r+','MarkerSize',5);
+hold off
+%}
